@@ -1,0 +1,726 @@
+var indicatorName = 'CashLibra v3.0'
+var waterMark = ''
+//@version=5
+indicator(title=indicatorName, shorttitle=indicatorName, overlay=true,max_labels_count=500)
+
+
+functionPivotPoints(periodLength) =>
+    float pivotHigh = na
+    float pivotLow = na
+    pivotHigh := ta.pivothigh(periodLength, periodLength)
+    pivotLow := ta.pivotlow(periodLength, periodLength)
+    /////////////////////////////////
+    
+    float valuewhen_1=na
+    float valuewhen_2=na
+    float valuewhen_3=na
+    float valuewhen_4=na
+    float valuewhen_5=na
+    float valuewhen_6=na
+    float valuewhen_7=na
+    float valuewhen_8=na
+    
+    // Higher Highs, Lower Highs, Higher Lows, Lower Lows  //
+    valuewhen_1 := ta.valuewhen(pivotHigh, high[periodLength], 1)
+    valuewhen_2 := ta.valuewhen(pivotHigh, high[periodLength], 0)
+    higherhigh = na(pivotHigh) ? na : valuewhen_1 < valuewhen_2 ? pivotHigh : na
+    valuewhen_3 := ta.valuewhen(pivotHigh, high[periodLength], 1)
+    valuewhen_4 := ta.valuewhen(pivotHigh, high[periodLength], 0)
+    lowerhigh = na(pivotHigh) ? na : valuewhen_3 > valuewhen_4 ? pivotHigh : na
+    valuewhen_5 := ta.valuewhen(pivotLow, low[periodLength], 1)
+    valuewhen_6 := ta.valuewhen(pivotLow, low[periodLength], 0)
+    higherlow = na(pivotLow) ? na : valuewhen_5 < valuewhen_6 ? pivotLow : na
+    valuewhen_7 := ta.valuewhen(pivotLow, low[periodLength], 1)
+    valuewhen_8 := ta.valuewhen(pivotLow, low[periodLength], 0)
+    lowerlow = na(pivotLow) ? na : valuewhen_7 > valuewhen_8 ? pivotLow : na
+    [higherhigh, higherlow, lowerhigh, lowerlow]
+
+
+[hh50, hl50, lh50, ll50] = functionPivotPoints(50)
+[hh25, hl25, lh25, ll25] = functionPivotPoints(25)
+[hh9, hl9, lh9, ll9] = functionPivotPoints(9)
+[hh5, hl5, lh5, ll5] = functionPivotPoints(5)
+
+plot(hh50, title='Uzak Destek/Direnç-HH', color=color.new(color.red, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(hl50, title='Uzak Destek/Direnç-HH', color=color.new(color.red, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(lh50, title='Uzak Destek/Direnç-HH', color=color.new(color.red, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(ll50, title='Uzak Destek/Direnç-HH', color=color.new(color.red, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+
+plot(hh25, title='Uzak Destek/Direnç-HH', color=color.new(color.yellow, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(hl25, title='Uzak Destek/Direnç-HH', color=color.new(color.yellow, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(lh25, title='Uzak Destek/Direnç-HH', color=color.new(color.yellow, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(ll25, title='Uzak Destek/Direnç-HH', color=color.new(color.yellow, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+
+plot(hh9, title='Uzak Destek/Direnç-HH', color=color.new(color.lime, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(hl9, title='Uzak Destek/Direnç-HH', color=color.new(color.lime, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(lh9, title='Uzak Destek/Direnç-HH', color=color.new(color.lime, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(ll9, title='Uzak Destek/Direnç-HH', color=color.new(color.lime, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+
+plot(hh5, title='Uzak Destek/Direnç-HH', color=color.new(color.green, 10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(hl5, title='Uzak Destek/Direnç-HH', color=color.new(color.green,10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(lh5, title='Uzak Destek/Direnç-HH', color=color.new(color.green,10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+plot(ll5, title='Uzak Destek/Direnç-HH', color=color.new(color.green,10), linewidth=2, style=plot.style_circles, trackprice=true, editable=false)
+
+
+
+
+
+string inputHADisplayMode = 'Flips Only'
+bool inputShowPredictiveCloses = true
+
+
+
+var float HAOpen = 0.0  // OHLC values for HA candles
+var float HAClose = 0.0
+var float HAHigh = 0.0
+var float HALow = 0.0
+var bool isHAUp = false  // Is this a red or green HA candle
+var bool isHADown = false
+var bool isHAFlipUp = false  // Are we flipping red/green?
+isHAFlipDown = false
+
+functionHeikinAshi(_open, _close, _high, _low, _HAOpen1, _HAClose1) =>
+    // This function calculates the Heikin Ashi values. Coded myself using the formula from Investopedia.
+    float _iHAOpen = barstate.isfirst ? (_open + _close) / 2 : (_HAOpen1 + _HAClose1) / 2  // Some formulations on the internet just use HAOpen = open for the first bar.
+    float _iHAClose = (_open + _close + _high + _low) / 4
+    float _iHAHigh = barstate.isfirst ? _high : math.max(_high, _iHAOpen, _iHAClose)  // Not currently used; included for completeness
+    float _iHALow = barstate.isfirst ? _low : math.min(_low, _iHAOpen, _iHAClose)  // Not currently used; included for completeness
+    bool _iIsHAUp = _iHAClose > _iHAOpen
+    bool _iIsHADown = _iHAClose <= _iHAOpen
+    [_iHAOpen, _iHAClose, _iHAHigh, _iHALow, _iIsHAUp, _iIsHADown]
+
+[r_HAOpen, r_HAClose, r_HAHigh, r_HALow, r_isHAUp, r_isHADown] = functionHeikinAshi(open, close, high, low, HAOpen[1], HAClose[1])
+HAOpen := r_HAOpen
+HAClose := r_HAClose
+isHAUp := r_isHAUp
+isHADown := r_isHADown
+// HAHigh := r_HAHigh, HALow := r_HALow // We don't actually need these to determine red or green Heikin Ashi.
+
+isHAFlipUp := isHAUp and isHADown[1]  // The flip variable is only true on the first flipped bar
+isHAFlipDown := isHADown and isHAUp[1]
+
+
+
+
+
+functionHAPredictClose(_HAOpen) =>
+    // This function predicts the price of the close that would be needed to flip the Heikin Ashi colour of the current bar only
+    float _closeInside = 4 * _HAOpen - open - high - low  // Version that works inside candles
+    float _closeBelow = 2 * _HAOpen - (open + high) / 2  // Version that works below candles
+    float _closeAbove = 2 * _HAOpen - (open + low) / 2  // Version that works above candles
+    _close = _closeInside > high ? _closeAbove : _closeInside < low ? _closeBelow : _closeInside  // Choose the right formula depending where the projection is
+    _close
+
+float HAPredictiveClose = functionHAPredictClose(HAOpen)
+
+
+// ================= PLOTS =================
+
+var color HABarUpColour = color.rgb(71, 196, 72)
+var color HABarDownColour = color.rgb(252, 68, 58)
+// Colour the candles if that option is set
+color HABarColour = isHAUp ? HABarUpColour : isHADown ? HABarDownColour : color.yellow
+barcolor(title='Heikin Ashi Bar Colour', color=HABarColour, editable=false)
+
+
+bool HAShapeFlipUp = isHAFlipUp and inputHADisplayMode == 'Flips Only'
+bool HAShapeFlipDown = isHAFlipDown and inputHADisplayMode == 'Flips Only'
+
+//////////////////
+// Stochastic RSI
+smoothK = 3
+smoothD = 3
+lengthRSI = 14
+lengthStoch = 14
+src2 = close
+rsi1 = ta.rsi(src2, lengthRSI)
+k = ta.sma(ta.stoch(rsi1, rsi1, rsi1, lengthStoch), smoothK)
+d = ta.sma(k, smoothD)
+
+al = k>40
+sat = k<80
+
+plotshape(HAShapeFlipUp, title='Al Sinyali', style=shape.labelup, location=location.belowbar, color=color.rgb(71, 196, 72), size=size.tiny, text='Long', textcolor=color.white)
+plotshape(HAShapeFlipDown, title='Sat Sinyali', style=shape.labeldown, location=location.abovebar, color=color.rgb(252, 68, 58), size=size.tiny, text='Short', textcolor=color.white)
+
+
+
+srcH = high
+srcL = low
+lenH = 8
+lenL = 8
+smmaH = ta.ema(srcH, lenH)
+smmaL = ta.ema(srcL, lenL)
+plot(smmaH, color=color.orange, linewidth=2, title='Fiyat Üst Bandı', trackprice=true)
+plot(smmaL, color=color.orange, linewidth=2, title='Fiyat Alt Bandı', trackprice=true)
+
+
+
+
+AUTO = 'Auto'
+DAILY = 'Daily'
+WEEKLY = 'Weekly'
+MONTHLY = 'Monthly'
+QUARTERLY = 'Quarterly'
+YEARLY = 'Yearly'
+BIYEARLY = 'Biyearly'
+TRIYEARLY = 'Triyearly'
+QUINQUENNIALLY = 'Quinquennially'
+DECENNIALLY = 'Decennially'
+
+TRADITIONAL = 'Traditional'
+FIBONACCI = 'Fibonacci'
+WOODIE = 'Woodie'
+CLASSIC = 'Classic'
+DEMARK = 'DM'
+CAMARILLA = 'Camarilla'
+
+kind = TRADITIONAL
+pivot_time_frame = AUTO
+look_back = 15
+is_daily_based = input.bool(title='Günlük Bazlı Fib. Kullan', defval=true, group='Fibonacci Seviyeleri')
+
+show_labels = false
+position_labels = 'Left'
+
+var DEF_COLOR = color.rgb(59, 138, 212)
+var arr_time = array.new_int()
+var p = array.new_float()
+p_show = input.bool(true, 'Plot Noktası', inline='Plot Noktası', group='Fibonacci Seviyeleri')
+p_color = input.color(DEF_COLOR, '', inline='Plot Noktası', group='Fibonacci Seviyeleri')
+
+var r1 = array.new_float()
+var s1 = array.new_float()
+s1r1_show = input.bool(true, 'Fib. S1/R1', inline='Fib. S1/R1', group='Fibonacci Seviyeleri')
+s1r1_color = input.color(DEF_COLOR, '', inline='Fib. S1/R1', group='Fibonacci Seviyeleri')
+
+var r2 = array.new_float()
+var s2 = array.new_float()
+s2r2_show = input.bool(true, 'Fib. S2/R2', inline='Fib. S2/R2', group='Fibonacci Seviyeleri')
+s2r2_color = input.color(DEF_COLOR, '', inline='Fib. S2/R2', group='Fibonacci Seviyeleri')
+
+var r3 = array.new_float()
+var s3 = array.new_float()
+s3r3_show = input.bool(true, 'Fib. S3/R3', inline='Fib. S3/R3', group='Fibonacci Seviyeleri')
+s3r3_color = input.color(DEF_COLOR, '', inline='Fib. S3/R3', group='Fibonacci Seviyeleri')
+
+var r4 = array.new_float()
+var s4 = array.new_float()
+s4r4_show = input.bool(false, 'Fib. S4/R4', inline='Fib. S4/R4', group='Fibonacci Seviyeleri')
+s4r4_color = input.color(DEF_COLOR, '', inline='Fib. S4/R4', group='Fibonacci Seviyeleri')
+
+var r5 = array.new_float()
+var s5 = array.new_float()
+s5r5_show = input.bool(false, 'Fib. S5/R5', inline='Fib. S5/R5', group='Fibonacci Seviyeleri')
+s5r5_color = input.color(DEF_COLOR, '', inline='Fib. S5/R5', group='Fibonacci Seviyeleri')
+
+pivotX_open = float(na)
+pivotX_open := nz(pivotX_open[1], open)
+pivotX_high = float(na)
+pivotX_high := nz(pivotX_high[1], high)
+pivotX_low = float(na)
+pivotX_low := nz(pivotX_low[1], low)
+pivotX_prev_open = float(na)
+pivotX_prev_open := nz(pivotX_prev_open[1])
+pivotX_prev_high = float(na)
+pivotX_prev_high := nz(pivotX_prev_high[1])
+pivotX_prev_low = float(na)
+pivotX_prev_low := nz(pivotX_prev_low[1])
+pivotX_prev_close = float(na)
+pivotX_prev_close := nz(pivotX_prev_close[1])
+
+get_pivot_resolution() =>
+    resolution = 'M'
+    if pivot_time_frame == AUTO
+        if timeframe.isintraday
+            resolution := timeframe.multiplier <= 15 ? 'D' : 'W'
+            resolution
+        else if timeframe.isweekly or timeframe.ismonthly
+            resolution := '12M'
+            resolution
+    else if pivot_time_frame == DAILY
+        resolution := 'D'
+        resolution
+    else if pivot_time_frame == WEEKLY
+        resolution := 'W'
+        resolution
+    else if pivot_time_frame == MONTHLY
+        resolution := 'M'
+        resolution
+    else if pivot_time_frame == QUARTERLY
+        resolution := '3M'
+        resolution
+    else if pivot_time_frame == YEARLY or pivot_time_frame == BIYEARLY or pivot_time_frame == TRIYEARLY or pivot_time_frame == QUINQUENNIALLY or pivot_time_frame == DECENNIALLY
+        resolution := '12M'
+        resolution
+    resolution
+
+var lines = array.new_line()
+var labels = array.new_label()
+
+draw_line(i, pivot, col) =>
+    if array.size(arr_time) > 1
+        array.push(lines, line.new(array.get(arr_time, i), array.get(pivot, i), array.get(arr_time, i + 1), array.get(pivot, i), color=col, xloc=xloc.bar_time))
+
+draw_label(i, y, txt, txt_color) =>
+    offset = '‏  ‏  ‏  ‏  ‏'
+    labels_align_str_left = position_labels == 'Left' ? txt + offset : offset + txt
+    x = position_labels == 'Left' ? array.get(arr_time, i) : array.get(arr_time, i + 1)
+    array.push(labels, label.new(x=x, y=y, text=labels_align_str_left, textcolor=txt_color, style=label.style_label_center, color=#00000000, xloc=xloc.bar_time))
+
+traditional() =>
+    pivotX_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_prev_close) / 3
+    array.push(p, pivotX_Median)
+    array.push(r1, pivotX_Median * 2 - pivotX_prev_low)
+    array.push(s1, pivotX_Median * 2 - pivotX_prev_high)
+    array.push(r2, pivotX_Median + 1 * (pivotX_prev_high - pivotX_prev_low))
+    array.push(s2, pivotX_Median - 1 * (pivotX_prev_high - pivotX_prev_low))
+    array.push(r3, pivotX_Median * 2 + pivotX_prev_high - 2 * pivotX_prev_low)
+    array.push(s3, pivotX_Median * 2 - (2 * pivotX_prev_high - pivotX_prev_low))
+    array.push(r4, pivotX_Median * 3 + pivotX_prev_high - 3 * pivotX_prev_low)
+    array.push(s4, pivotX_Median * 3 - (3 * pivotX_prev_high - pivotX_prev_low))
+    array.push(r5, pivotX_Median * 4 + pivotX_prev_high - 4 * pivotX_prev_low)
+    array.push(s5, pivotX_Median * 4 - (4 * pivotX_prev_high - pivotX_prev_low))
+
+fibonacci() =>
+    pivotX_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_prev_close) / 3
+    pivot_range = pivotX_prev_high - pivotX_prev_low
+    array.push(p, pivotX_Median)
+    array.push(r1, pivotX_Median + 0.382 * pivot_range)
+    array.push(s1, pivotX_Median - 0.382 * pivot_range)
+    array.push(r2, pivotX_Median + 0.618 * pivot_range)
+    array.push(s2, pivotX_Median - 0.618 * pivot_range)
+    array.push(r3, pivotX_Median + 1 * pivot_range)
+    array.push(s3, pivotX_Median - 1 * pivot_range)
+
+woodie() =>
+    pivotX_Woodie_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_open * 2) / 4
+    pivot_range = pivotX_prev_high - pivotX_prev_low
+    array.push(p, pivotX_Woodie_Median)
+    array.push(r1, pivotX_Woodie_Median * 2 - pivotX_prev_low)
+    array.push(s1, pivotX_Woodie_Median * 2 - pivotX_prev_high)
+    array.push(r2, pivotX_Woodie_Median + 1 * pivot_range)
+    array.push(s2, pivotX_Woodie_Median - 1 * pivot_range)
+
+    pivot_point_r3 = pivotX_prev_high + 2 * (pivotX_Woodie_Median - pivotX_prev_low)
+    pivot_point_s3 = pivotX_prev_low - 2 * (pivotX_prev_high - pivotX_Woodie_Median)
+    array.push(r3, pivot_point_r3)
+    array.push(s3, pivot_point_s3)
+    array.push(r4, pivot_point_r3 + pivot_range)
+    array.push(s4, pivot_point_s3 - pivot_range)
+
+classic() =>
+    pivotX_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_prev_close) / 3
+    pivot_range = pivotX_prev_high - pivotX_prev_low
+    array.push(p, pivotX_Median)
+    array.push(r1, pivotX_Median * 2 - pivotX_prev_low)
+    array.push(s1, pivotX_Median * 2 - pivotX_prev_high)
+    array.push(r2, pivotX_Median + 1 * pivot_range)
+    array.push(s2, pivotX_Median - 1 * pivot_range)
+    array.push(r3, pivotX_Median + 2 * pivot_range)
+    array.push(s3, pivotX_Median - 2 * pivot_range)
+    array.push(r4, pivotX_Median + 3 * pivot_range)
+    array.push(s4, pivotX_Median - 3 * pivot_range)
+
+demark() =>
+    pivotX_Demark_X = pivotX_prev_high + pivotX_prev_low * 2 + pivotX_prev_close
+    if pivotX_prev_close == pivotX_prev_open
+        pivotX_Demark_X := pivotX_prev_high + pivotX_prev_low + pivotX_prev_close * 2
+        pivotX_Demark_X
+    if pivotX_prev_close > pivotX_prev_open
+        pivotX_Demark_X := pivotX_prev_high * 2 + pivotX_prev_low + pivotX_prev_close
+        pivotX_Demark_X
+    array.push(p, pivotX_Demark_X / 4)
+    array.push(r1, pivotX_Demark_X / 2 - pivotX_prev_low)
+    array.push(s1, pivotX_Demark_X / 2 - pivotX_prev_high)
+
+camarilla() =>
+    pivotX_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_prev_close) / 3
+    pivot_range = pivotX_prev_high - pivotX_prev_low
+    array.push(p, pivotX_Median)
+    array.push(r1, pivotX_prev_close + pivot_range * 1.1 / 12.0)
+    array.push(s1, pivotX_prev_close - pivot_range * 1.1 / 12.0)
+    array.push(r2, pivotX_prev_close + pivot_range * 1.1 / 6.0)
+    array.push(s2, pivotX_prev_close - pivot_range * 1.1 / 6.0)
+    array.push(r3, pivotX_prev_close + pivot_range * 1.1 / 4.0)
+    array.push(s3, pivotX_prev_close - pivot_range * 1.1 / 4.0)
+    array.push(r4, pivotX_prev_close + pivot_range * 1.1 / 2.0)
+    array.push(s4, pivotX_prev_close - pivot_range * 1.1 / 2.0)
+
+resolution = get_pivot_resolution()
+
+[sec_open, sec_high, sec_low, sec_close] = request.security(syminfo.tickerid, resolution, [open, high, low, close], lookahead=barmerge.lookahead_on)
+sec_open_gaps_on = request.security(syminfo.tickerid, resolution, open, gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_on)
+
+var number_of_years = 0
+is_change_years = false
+var custom_years_resolution = pivot_time_frame == BIYEARLY or pivot_time_frame == TRIYEARLY or pivot_time_frame == QUINQUENNIALLY or pivot_time_frame == DECENNIALLY
+if custom_years_resolution and ta.change(time(resolution))
+    number_of_years += 1
+    if pivot_time_frame == BIYEARLY and number_of_years % 2 == 0
+        is_change_years := true
+        number_of_years := 0
+        number_of_years
+    else if pivot_time_frame == TRIYEARLY and number_of_years % 3 == 0
+        is_change_years := true
+        number_of_years := 0
+        number_of_years
+    else if pivot_time_frame == QUINQUENNIALLY and number_of_years % 5 == 0
+        is_change_years := true
+        number_of_years := 0
+        number_of_years
+    else if pivot_time_frame == DECENNIALLY and number_of_years % 10 == 0
+        is_change_years := true
+        number_of_years := 0
+        number_of_years
+
+var is_change = false
+var uses_current_bar = timeframe.isintraday and kind == WOODIE
+var change_time = int(na)
+is_time_change = ta.change(time(resolution)) and not custom_years_resolution or is_change_years
+if is_time_change
+    change_time := time
+    change_time
+
+
+if not uses_current_bar and is_time_change or uses_current_bar and not na(sec_open_gaps_on)
+    if is_daily_based
+        pivotX_prev_open := sec_open[1]
+        pivotX_prev_high := sec_high[1]
+        pivotX_prev_low := sec_low[1]
+        pivotX_prev_close := sec_close[1]
+        pivotX_open := sec_open
+        pivotX_high := sec_high
+        pivotX_low := sec_low
+        pivotX_low
+    else
+        pivotX_prev_high := pivotX_high
+        pivotX_prev_low := pivotX_low
+        pivotX_prev_open := pivotX_open
+        pivotX_open := open
+        pivotX_high := high
+        pivotX_low := low
+        pivotX_prev_close := close[1]
+        pivotX_prev_close
+
+    if barstate.islast and not is_change and array.size(arr_time) > 0
+        array.set(arr_time, array.size(arr_time) - 1, change_time)
+    else
+        array.push(arr_time, change_time)
+
+    if kind == TRADITIONAL
+        traditional()
+    else if kind == FIBONACCI
+        fibonacci()
+    else if kind == WOODIE
+        woodie()
+    else if kind == CLASSIC
+        classic()
+    else if kind == DEMARK
+        demark()
+    else if kind == CAMARILLA
+        camarilla()
+
+    if array.size(arr_time) > look_back
+        if array.size(arr_time) > 0
+            array.shift(arr_time)
+        if array.size(p) > 0 and p_show
+            array.shift(p)
+        if array.size(r1) > 0 and s1r1_show
+            array.shift(r1)
+        if array.size(s1) > 0 and s1r1_show
+            array.shift(s1)
+        if array.size(r2) > 0 and s2r2_show
+            array.shift(r2)
+        if array.size(s2) > 0 and s2r2_show
+            array.shift(s2)
+        if array.size(r3) > 0 and s3r3_show
+            array.shift(r3)
+        if array.size(s3) > 0 and s3r3_show
+            array.shift(s3)
+        if array.size(r4) > 0 and s4r4_show
+            array.shift(r4)
+        if array.size(s4) > 0 and s4r4_show
+            array.shift(s4)
+        if array.size(r5) > 0 and s5r5_show
+            array.shift(r5)
+        if array.size(s5) > 0 and s5r5_show
+            array.shift(s5)
+    is_change := true
+    is_change
+else
+    if is_daily_based
+        pivotX_high := math.max(pivotX_high, sec_high)
+        pivotX_low := math.min(pivotX_low, sec_low)
+        pivotX_low
+    else
+        pivotX_high := math.max(pivotX_high, high)
+        pivotX_low := math.min(pivotX_low, low)
+        pivotX_low
+
+if barstate.islast and array.size(arr_time) > 0 and is_change
+    is_change := false
+    if array.size(arr_time) > 2 and custom_years_resolution
+        last_pivot_time = array.get(arr_time, array.size(arr_time) - 1)
+        prev_pivot_time = array.get(arr_time, array.size(arr_time) - 2)
+        estimate_pivot_time = last_pivot_time - prev_pivot_time
+        array.push(arr_time, last_pivot_time + estimate_pivot_time)
+    else
+        array.push(arr_time, time_close(resolution))
+
+    for i = 0 to array.size(lines) - 1 by 1
+        if array.size(lines) > 0
+            line.delete(array.shift(lines))
+        if array.size(lines) > 0
+            label.delete(array.shift(labels))
+
+    for i = 0 to array.size(arr_time) - 2 by 1
+        if array.size(p) > 0 and p_show
+            draw_line(i, p, p_color)
+            draw_label(i, array.get(p, i), 'P', p_color)
+        if array.size(r1) > 0 and s1r1_show
+            draw_line(i, r1, s1r1_color)
+            draw_label(i, array.get(r1, i), 'R1', s1r1_color)
+        if array.size(s1) > 0 and s1r1_show
+            draw_line(i, s1, s1r1_color)
+            draw_label(i, array.get(s1, i), 'S1', s1r1_color)
+        if array.size(r2) > 0 and s2r2_show
+            draw_line(i, r2, s2r2_color)
+            draw_label(i, array.get(r2, i), 'R2', s2r2_color)
+        if array.size(s2) > 0 and s2r2_show
+            draw_line(i, s2, s2r2_color)
+            draw_label(i, array.get(s2, i), 'S2', s2r2_color)
+        if array.size(r3) > 0 and s3r3_show
+            draw_line(i, r3, s3r3_color)
+            draw_label(i, array.get(r3, i), 'R3', s3r3_color)
+        if array.size(s3) > 0 and s3r3_show
+            draw_line(i, s3, s3r3_color)
+            draw_label(i, array.get(s3, i), 'S3', s3r3_color)
+        if array.size(r4) > 0 and s4r4_show
+            draw_line(i, r4, s4r4_color)
+            draw_label(i, array.get(r4, i), 'R4', s4r4_color)
+        if array.size(s4) > 0 and s4r4_show
+            draw_line(i, s4, s4r4_color)
+            draw_label(i, array.get(s4, i), 'S4', s4r4_color)
+        if array.size(r5) > 0 and s5r5_show
+            draw_line(i, r5, s5r5_color)
+            draw_label(i, array.get(r5, i), 'R5', s5r5_color)
+        if array.size(s5) > 0 and s5r5_show
+            draw_line(i, s5, s5r5_color)
+            draw_label(i, array.get(s5, i), 'S5', s5r5_color)
+
+
+
+
+
+// Watermark
+//  v1.0, 2021.05.27 19:06
+// This code was written using the PineCoders Coding Conventions for Pine: http://www.pinecoders.com/coding_conventions/
+
+string i_text1 = waterMark
+string i_text2 = waterMark
+string i_tableYpos = 'bottom'
+string i_tableXpos = 'right'
+int i_height = 8
+int i_width = 13
+color i_c_text = color.new(color.white, 30)
+string i_textSize = 'normal'
+color i_c_bg = color.new(color.red, 50)
+
+// We use `var` to only initialize the table on the first bar.
+var table watermark = table.new(i_tableYpos + '_' + i_tableXpos, 1, 1)
+
+// We only populate the table on the last bar; it's more efficient.
+if barstate.islast
+    // This `varip` variable will preserve its value across realtime updates.
+    varip bool _changeText = true
+    // Toggle this value on each update.
+    _changeText := not _changeText
+    // If there's a "Text 2" string in inputs and it's time to flip, change the text.
+    string _txt = str.length(i_text2) != 0 and _changeText ? i_text2 : i_text1
+    // Populate our table cell.
+    table.cell(watermark, 0, 0, _txt, i_width, i_height, i_c_text, text_size=i_textSize, bgcolor=i_c_bg)
+    
+
+//linreg
+showLinReg = input.bool(false, 'Lineer Reg. Kanalı', group='LinReg')
+period = input.int(50, 'Lineer Reg. Knl. Periyodu', minval=3, group='LinReg')
+deviations = 2.5
+extendType = extend.none
+periodMinusOne = period - 1
+Ex = 0.0
+Ey = 0.0
+Ex2 = 0.0
+Ey2 = 0.0
+Exy = 0.0
+for i = 0 to periodMinusOne by 1
+    closeI = nz(close[i])
+    Ex += i
+    Ey += closeI
+    Ex2 += i * i
+    Ey2 += closeI * closeI
+    Exy += closeI * i
+    Exy
+ExT2 = math.pow(Ex, 2.0)  //Sum of X THEN Squared
+EyT2 = math.pow(Ey, 2.0)  //Sym of Y THEN Squared
+PearsonsR = (Exy - Ex * Ey / period) / (math.sqrt(Ex2 - ExT2 / period) * math.sqrt(Ey2 - EyT2 / period))
+ExEx = Ex * Ex
+slope = Ex2 == ExEx ? 0.0 : (period * Exy - Ex * Ey) / (period * Ex2 - ExEx)
+linearRegression = (Ey - slope * Ex) / period
+intercept = linearRegression + bar_index * slope
+deviation = 0.0
+for i = 0 to periodMinusOne by 1
+    deviation += math.pow(nz(close[i]) - (intercept - slope * bar_index[i]), 2.0)
+    deviation
+deviation := deviations * math.sqrt(deviation / periodMinusOne)
+startingPointY = linearRegression + slope * periodMinusOne
+var label pearsonsRLabel = na
+label.delete(pearsonsRLabel[1])
+//pearsonsRLabel := label.new(bar_index, startingPointY - deviation * 2, text=str.tostring(PearsonsR), color=color.black, style=label.style_label_down, textcolor=color.white, size=size.large)
+var line upperChannelLine = na
+var line medianChannelLine = na
+var line lowerChannelLine = na
+line.delete(upperChannelLine[1])
+line.delete(medianChannelLine[1])
+line.delete(lowerChannelLine[1])
+if(showLinReg) 
+    upperChannelLine := line.new(bar_index - period + 1, startingPointY + deviation, bar_index, linearRegression + deviation, xloc.bar_index, extendType, color.new(#FF0000, 0), line.style_solid, 2)
+if(showLinReg)
+    medianChannelLine := line.new(bar_index - period + 1, startingPointY, bar_index, linearRegression, xloc.bar_index, extendType, color.new(#C0C000, 0), line.style_solid, 1)
+if(showLinReg)
+    lowerChannelLine := line.new(bar_index - period + 1, startingPointY - deviation, bar_index, linearRegression - deviation, xloc.bar_index, extendType, color.new(#00FF00, 0), line.style_solid, 2)
+
+
+
+
+// ============================== Trailing Stop ==================================
+
+
+atrLookback = input.int(defval=14, title='ATR Periyodu', group='Takipli Stop')
+atrMultiplier = input.float(defval=3, title='ATR Çarpanı', step=0.1, minval=0.5, maxval=4, group='Takipli Stop')
+atrTrailMode = 'Trailing'
+atrFlipInput = 'Close'
+atrBodyPercent = 100
+atrWickPercent = 100
+atrSmoothingMode = input.string(title='ATR Modu', defval='RMA', options=['RMA', 'SMA', 'EMA', 'WMA'], group='Takipli Stop')
+
+
+// ============================== CALCULATE ATR ==================================
+
+f_ma(_source, _length, _atrSmoothingMode) =>
+    if _atrSmoothingMode == 'RMA'
+        ta.rma(_source, _length)
+    else
+        if _atrSmoothingMode == 'SMA'
+            ta.sma(_source, _length)
+        else
+            if _atrSmoothingMode == 'EMA'
+                ta.ema(_source, _length)
+            else
+                ta.wma(_source, _length)
+
+float atrBodyTrueRange = math.max(math.abs(open - close), math.abs(open - close[1]), math.abs(close - close[1]))
+float atrWickTrueRange = high - math.max(open, close) + math.min(open, close) - low
+float atrPercentAdjustedTrueRange = atrBodyTrueRange * (atrBodyPercent / 100) + atrWickTrueRange * (atrWickPercent / 100)
+
+float atrValue = f_ma(atrPercentAdjustedTrueRange, atrLookback, atrSmoothingMode)
+float atrMultiplied = atrValue * atrMultiplier
+
+// Plot the price plus or minus the ATR
+float atrLow = low - atrMultiplied
+float atrHigh = high + atrMultiplied
+
+
+// ============================== CALCULATE TRAILING ATR ==================================
+
+f_trail(_source, _trail, _direction) =>
+    // This function trails the source series up or down
+    _direction == 'down' and _source >= _trail ? _trail : _direction == 'up' and _source <= _trail ? _trail : _source
+
+// Need to declare these variables here, in the global scope, so we can use them in other functions later
+var float trailAtrLong = atrLow
+var float trailAtrShort = atrHigh
+
+// Trail the high (short) stop down and the low (long) stop up
+trailAtrLong := f_trail(atrLow, trailAtrLong, 'up')
+trailAtrShort := f_trail(atrHigh, trailAtrShort, 'down')
+
+// // DEBUG
+// plot(atrTrailMode == "Trailing" ? trailAtrLong : na, "Trailing ATR Long Stop Highlight", color=color.teal, style=plot.style_linebr, linewidth=1, transp=0)
+// plot(atrTrailMode == "Trailing" ? trailAtrShort : na, "Trailing ATR Short Stop Highlight", color=color.red, style=plot.style_linebr, linewidth=1, transp=0)
+
+// ============================== FLIP WHEN PRICE CROSSES ==================================
+
+f_flip(_flipInput, _longTrail, _shortTrail, _longReset, _shortReset) =>
+    // This function flips from a trailing long stop to a trailing short stop and vice-versa. It takes the following inputs:
+        // _flipInput - A string that defines whether to consider a touch of the stop line as a flip, or a close beyond it
+        // _longTrail - The long trailing stop (trails up, below the price)
+        // _shortTrail - The short trailing stop (trails down, above the price)
+        // _longReset - The value to reset the long stop to, when it's hit
+        // _shortReset - The value to reset the short stop to, when it's hit
+    // The function returns the following outputs:
+        // _longTrailOutput - The long trailing stop. Normally the same as it was input, unless it's reset.
+        // _shortTrailOutput - The short trailing stop. Normally the same as it was input, unless it's reset.
+        // _longTrailPlot - The long trailing stop to plot. This is na if we are not long.
+        // _shortTrailPlot - The short trailing stop to plot. This is na if we are not short.
+    //
+    // These variables say whether we are flipping long or short this very bar. Usually they are both false. Only one of them can be true at once.
+    var bool _flipLongNow = false
+    var bool _flipShortNow = false
+    // These variables say what state we're in: long or short. One or both are always true.
+    // In the beginning, we haven't hit any trails yet, so we start off both long and short, to display both lines.
+    var bool _isLong = true
+    var bool _isShort = true
+    // Get the source, depending whether it's on close or on touch
+    float _flipLongSource = _flipInput == 'Close' ? close : _flipInput == 'Wick' ? high : na
+    float _flipShortSource = _flipInput == 'Close' ? close : _flipInput == 'Wick' ? low : na
+    // Are we flipping long or short this bar?
+    _flipLongNow := _isShort[1] and _flipLongSource > _shortTrail ? true : false
+    _flipShortNow := _isLong[1] and _flipShortSource < _longTrail ? true : false
+    // In the edge case where we manage to flip both long and short, we need to reset that based on the close. The close is definitive for history and intra-candle it will take the current value.
+    _flipLongNow := _flipShortNow and _flipLongNow and close > _longTrail ? true : _flipShortNow and _flipLongNow and close <= _longTrail ? false : _flipLongNow
+    _flipShortNow := _flipLongNow and _flipShortNow and close < _shortTrail ? true : _flipShortNow and _flipLongNow and close >= _shortTrail ? false : _flipShortNow
+    // Set the long and short state variables. Set if we flip (simple), initialise to true if this is the first time (needed), otherwise persist.
+    _isLong := _flipLongNow ? true : _flipShortNow ? false : na(_isLong[1]) ? true : _isLong[1]
+    _isShort := _flipShortNow ? true : _flipLongNow ? false : na(_isShort[1]) ? true : _isShort[1]
+    // Update the trailing price. If we flip this bar, reset to the nearest fractal - which goes against the trail direction, which is why we need to use another series.
+    _longTrailOutput = _longTrail
+    _shortTrailOutput = _shortTrail
+    _longTrailOutput := _isLong and not _isLong[1] ? _longReset : _longTrailOutput
+    _shortTrailOutput := _isShort and not _isShort[1] ? _shortReset : _shortTrailOutput
+    // Hide the trailing long stop if we are short, and hide the trailing short stop if we are long. Show both if we are both long and short. 
+    float _longTrailPlot = _isLong ? _longTrailOutput : _isLong and _isShort ? _longTrailOutput : na
+    float _shortTrailPlot = _isShort ? _shortTrailOutput : _isLong and _isShort ? _shortTrailOutput : na
+    [_longTrailOutput, _shortTrailOutput, _longTrailPlot, _shortTrailPlot]
+
+// Get the plots for the trails, to show only long stop when long and short stop when short.
+[trailAtrLongTemp, trailAtrShortTemp, trailAtrLongPlot, trailAtrShortPlot] = f_flip(atrFlipInput, trailAtrLong, trailAtrShort, atrLow, atrHigh)
+
+// Put these variables back in the global scope so we can persist them and use them as inputs to the function next bar. 
+trailAtrLong := trailAtrLongTemp
+trailAtrShort := trailAtrShortTemp
+
+
+// ============================== PLOT LINES ==================================
+
+
+plot(trailAtrLongPlot, 'Takipli Long Stop', color=color.new(color.navy, 50), style=plot.style_linebr, linewidth=3)
+plot(trailAtrLongPlot, 'Trailing ATR Long Stop Highlight', color=color.teal, style=plot.style_linebr, linewidth=1, editable=false)
+
+plot(trailAtrShortPlot, 'Takipli Short Stop', color=color.new(color.maroon, 50), style=plot.style_linebr, linewidth=3)
+plot(trailAtrShortPlot, 'Trailing ATR Short Stop Highlight', color=color.red, style=plot.style_linebr, linewidth=1, editable=false)
+
+
+// ============================== ALERTS ==================================
+
+// Alert for crossing the trailing ATR. You can set this to trigger Once, or Once per bar close, in the
+// TradingView alert configuration screen. You can use this for soft stops or to look for entries.
+
+float atrFlipLongSource = atrFlipInput == 'Close' ? close : atrFlipInput == 'Wick' ? high : na
+float atrFlipShortSource = atrFlipInput == 'Close' ? close : atrFlipInput == 'Wick' ? low : na
+
+bool alertCrossAtrShortStop = atrFlipLongSource > trailAtrShortPlot[1] and atrFlipLongSource[1] <= trailAtrShortPlot[2] ? true : false
+bool alertCrossAtrLongStop = atrFlipShortSource < trailAtrLongPlot[1] and atrFlipShortSource[1] >= trailAtrLongPlot[2] ? true : false
+
+bool alertCrossAtr = alertCrossAtrShortStop or alertCrossAtrLongStop
+
