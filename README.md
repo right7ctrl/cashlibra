@@ -13,7 +13,7 @@ Written in pinescript
 - Set the candles as heikin-ashi
 - Add the indicator as favorite on the link below or use the code on this repository
 - Add Stoch RSI Indicator to TradingView
-- Link on Tradingview: [https://tr.tradingview.com/script/3KvQHE75/]()
+- Link on Tradingview: https://tr.tradingview.com/script/3KvQHE75/
 
 ## How to use
 
